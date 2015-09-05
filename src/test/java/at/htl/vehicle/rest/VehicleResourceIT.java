@@ -190,8 +190,22 @@ public class VehicleResourceIT {
         Response postResponse = this.target
                 .request()
                 .post(Entity.json(vehicleToCreate));
+        postResponse.getHeaders().entrySet().forEach(System.out::println);
         assertThat(postResponse.getStatus(),is(201));
-        String location = postResponse.getHeaderString("Location");
-        System.out.println("location = " + location);
+    }
+
+    @Test
+    public void createVehicleWithInvalidTypeLength() {
+        JsonObjectBuilder vehicleBuilder = Json.createObjectBuilder();
+        JsonObject vehicleToCreate = vehicleBuilder
+                .add("brand", "abcdefghijk")
+                .add("type", "ABC")
+                .build();
+
+        Response postResponse = this.target
+                .request()
+                .post(Entity.json(vehicleToCreate));
+        postResponse.getHeaders().entrySet().forEach(System.out::println);
+        assertThat(postResponse.getStatus(),is(400));
     }
 }
