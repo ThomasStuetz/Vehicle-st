@@ -3,7 +3,10 @@ package at.htl.vehicle.rest;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
 import org.junit.Before;
+import org.junit.FixMethodOrder;
+import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runners.MethodSorters;
 
 import javax.json.Json;
 import javax.json.JsonArray;
@@ -42,7 +45,7 @@ public class VehicleResourceIT {
         // create
         Response postResponse = this.target
                 .request().post(Entity.json(vehicleToCreate));
-        assertThat(postResponse.getStatus(),is(201));
+        assertThat(postResponse.getStatus(), is(201));
         String location = postResponse.getHeaderString("Location");
         System.out.println("location = " + location);
 
@@ -51,8 +54,8 @@ public class VehicleResourceIT {
                 .target(location)
                 .request(MediaType.APPLICATION_JSON)
                 .get(JsonObject.class);
-        assertThat(dedicatedVehicle.getString("brand"),containsString("Opel"));
-        assertThat(dedicatedVehicle.getString("type"),equalTo("Commodore"));
+        assertThat(dedicatedVehicle.getString("brand"), containsString("Opel"));
+        assertThat(dedicatedVehicle.getString("type"), equalTo("Commodore"));
 
         // update
         JsonObjectBuilder updateBuilder = Json.createObjectBuilder();
@@ -61,18 +64,36 @@ public class VehicleResourceIT {
                 .add("type", "Kapitän")
                 .build();
 
-        this.client
+        Response updateResponse = this.client
                 .target(location)
                 .request(MediaType.APPLICATION_JSON)
                 .put(Entity.json(updated));
+        assertThat(updateResponse.getStatus(), is(200));
+
+        // update again
+        updateBuilder = Json.createObjectBuilder();
+        updated = updateBuilder
+                .add("brand", "VW")
+                .add("type", "Käfer 1400")
+                .build();
+
+        updateResponse = this.client
+                .target(location)
+                .request(MediaType.APPLICATION_JSON)
+                .put(Entity.json(updated));
+        assertThat(updateResponse.getStatus(), is(409));
+        String conflictInformation = updateResponse.getHeaderString("cause");
+        assertThat(conflictInformation, not(isEmptyString()));
+        System.out.println("conflictInformation = " + conflictInformation);
+
 
         // find it again
         JsonObject updatedVehicle = this.client
                 .target(location)
                 .request(MediaType.APPLICATION_JSON)
                 .get(JsonObject.class);
-        assertThat(updatedVehicle.getString("brand"),equalTo("Opel"));
-        assertThat(updatedVehicle.getString("type"),equalTo("Kapitän"));
+        assertThat(updatedVehicle.getString("brand"), equalTo("Opel"));
+        assertThat(updatedVehicle.getString("type"), equalTo("Kapitän"));
 
         // update vignetteValid
         JsonObjectBuilder vignetteValidBuilder = Json.createObjectBuilder();
@@ -91,7 +112,7 @@ public class VehicleResourceIT {
                 .target(location)
                 .request(MediaType.APPLICATION_JSON)
                 .get(JsonObject.class);
-        assertThat(updatedVehicle.getBoolean("annualVignetteValid"),equalTo(true));
+        assertThat(updatedVehicle.getBoolean("annualVignetteValid"), equalTo(true));
 
 
         // update not existing  vignetteValid
@@ -105,7 +126,7 @@ public class VehicleResourceIT {
                 .path("vignette_valid")
                 .request(MediaType.APPLICATION_JSON)
                 .put(Entity.json(vignetteValid));
-        assertThat(response.getStatus(),is(400));
+        assertThat(response.getStatus(), is(400));
         assertThat(response.getHeaderString("reason"), not(isEmptyString()));
 
         // update malformed vignetteValid
@@ -119,26 +140,58 @@ public class VehicleResourceIT {
                 .path("vignette_valid")
                 .request(MediaType.APPLICATION_JSON)
                 .put(Entity.json(vignetteValid));
-        assertThat(response.getStatus(),is(400));
+        assertThat(response.getStatus(), is(400));
         assertThat(response.getHeaderString("reason"), not(isEmptyString()));
 
         // findAll
         response = this.target
                 .request(MediaType.APPLICATION_JSON)
                 .get();
-        assertThat(response.getStatus(),is(200));
+        assertThat(response.getStatus(), is(200));
         JsonArray allTodos = response.readEntity(JsonArray.class);
         System.out.println("payload = " + allTodos);
-        assertThat(allTodos,not(empty()));
+        assertThat(allTodos, not(empty()));
 
         JsonObject vehicle = allTodos.getJsonObject(0);
-        assertThat(vehicle.getString("brand"),equalTo("Opel"));
+        assertThat(vehicle.getString("brand"), equalTo("Opel"));
 
         // deleting not-existing
         Response deleteResponse = this.target
                 .path("42")
                 .request(MediaType.APPLICATION_JSON)
                 .delete();
-        assertThat(deleteResponse.getStatus(),is(204)); // no content
+        assertThat(deleteResponse.getStatus(), is(204)); // no content
+    }
+
+    @Test
+    public void createVehicleWithoutBrand() {
+        JsonObjectBuilder vehicleBuilder = Json.createObjectBuilder();
+        JsonObject vehicleToCreate = vehicleBuilder
+                .add("type", "Commodore")
+                .build();
+
+        Response postResponse = this.target
+                .request()
+                .post(Entity.json(vehicleToCreate));
+        assertThat(postResponse.getStatus(),is(400));
+        String location = postResponse.getHeaderString("Location");
+        System.out.println("location = " + location);
+        postResponse.getHeaders().entrySet().forEach(System.out::println);
+    }
+
+    @Test
+    public void createValidVehicle() {
+        JsonObjectBuilder vehicleBuilder = Json.createObjectBuilder();
+        JsonObject vehicleToCreate = vehicleBuilder
+                .add("brand", "VW")
+                .add("type", "Käfer 1400")
+                .build();
+
+        Response postResponse = this.target
+                .request()
+                .post(Entity.json(vehicleToCreate));
+        assertThat(postResponse.getStatus(),is(201));
+        String location = postResponse.getHeaderString("Location");
+        System.out.println("location = " + location);
     }
 }
